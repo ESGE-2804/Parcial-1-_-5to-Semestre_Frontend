@@ -30,8 +30,12 @@ export default function AuthPage({ onLoginSuccess }) {
         throw new Error(data.detail || 'Ocurrió un error en la autenticación.');
       }
 
-      // Guardar usuario en estado global y en localStorage
-      onLoginSuccess(data.user || { name: name || data.name, email });
+      
+      onLoginSuccess({
+        name: data.name || data.user?.name || name,
+        email: email,
+        token: data.access_token || data.token
+      });
     } catch (err) {
       setError(err.message);
     } finally {

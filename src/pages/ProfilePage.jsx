@@ -46,6 +46,9 @@ export default function ProfilePage({ currentUser, onSelectVideo }) {
     try {
       const res = await fetch(`${API_URL}/videos`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${currentUser.token}`
+        },
         body: formData,
       });
       if (res.ok) {
@@ -56,7 +59,7 @@ export default function ProfilePage({ currentUser, onSelectVideo }) {
         setThumbFile(null);
         fetchMyVideos();
       } else {
-        alert('Error al subir el video.');
+        alert('Error al subir el video. Verifica tus permisos o el tamaño del archivo.');
       }
     } catch (err) {
       console.error(err);
@@ -72,7 +75,10 @@ export default function ProfilePage({ currentUser, onSelectVideo }) {
     try {
       const res = await fetch(`${API_URL}/videos/${editingVideo.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser.token}`
+        },
         body: JSON.stringify({
           title: editingVideo.title,
           description: editingVideo.description,
@@ -81,6 +87,8 @@ export default function ProfilePage({ currentUser, onSelectVideo }) {
       if (res.ok) {
         setEditingVideo(null);
         fetchMyVideos();
+      } else {
+        alert('No tienes permisos para editar este video.');
       }
     } catch (err) {
       alert('Error al actualizar el video.');
@@ -91,9 +99,16 @@ export default function ProfilePage({ currentUser, onSelectVideo }) {
   const handleDelete = async (videoId) => {
     if (!window.confirm('¿Seguro que deseas eliminar este video?')) return;
     try {
-      const res = await fetch(`${API_URL}/videos/${videoId}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/videos/${videoId}`, { 
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${currentUser.token}`
+        }
+      });
       if (res.ok) {
         setMyVideos((prev) => prev.filter((v) => v.id !== videoId));
+      } else {
+        alert('No tienes permisos para eliminar este video.');
       }
     } catch (err) {
       alert('Error al eliminar el video.');
