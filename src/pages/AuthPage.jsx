@@ -14,33 +14,71 @@ export default function AuthPage({ onLoginSuccess }) {
     setError('');
     setLoading(true);
 
-    const endpoint = isLogin ? `${API_URL}/login` : `${API_URL}/users`;
-    const payload = isLogin ? { email, password } : { name, email, password };
-
     try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      if (!isLogin) {
+        // 1. REGISTRO
+        const regRes = await fetch(`${API_URL}/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            nombre: name,
+            email,
+            password,
+            contraseña: password
+          }),
+        });
 
-      const data = await res.json();
+        const regData = await regRes.json();
+        if (!regRes.ok) {
+          throw new Error(regData.detail || 'Error al registrar la cuenta.');
+        }
 
-      if (!res.ok) {
-        throw new Error(data.detail || 'Ocurrió un error en la autenticación.');
+        // Si el registro ya devuelve token, lo usamos; si no, hacemos login automático de inmediato
+        if (regData.access_token || regData.token) {
+          saveSession(regData, email, name);
+          return;
+        }
       }
 
-      
-      onLoginSuccess({
-        name: data.name || data.user?.name || name,
-        email: email,
-        token: data.access_token || data.token
+      // 2. INICIO DE SESIÓN (LOGIN)
+      const loginRes = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       });
+
+      const loginData = await loginRes.json();
+      if (!loginRes.ok) {
+        throw new Error(loginData.detail || 'Credenciales incorrectas.');
+      }
+
+      saveSession(loginData, email, name || loginData.name || loginData.user?.name);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const saveSession = (data, userEmail, userName) => {
+    const token = data.access_token || data.token || (data.user && (data.user.token || data.user.access_token));
+    const userId = data.user_id || data.id || (data.user && (data.user.id || data.user.user_id));
+
+    if (!token) {
+      setError('El servidor no retornó un token de autenticación válido.');
+      return;
+    }
+
+    const sessionData = {
+      id: userId,
+      user_id: userId,
+      name: userName || (data.user && data.user.name) || userEmail.split('@')[0],
+      email: userEmail,
+      token: token
+    };
+
+    onLoginSuccess(sessionData);
   };
 
   return (
