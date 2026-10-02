@@ -5,20 +5,23 @@ export default function PlayerPage({ video, currentUser, onSelectVideo, onBack }
   const [comments, setComments] = useState([]);
   const [recommended, setRecommended] = useState([]);
   const [commentText, setCommentText] = useState('');
+  
+  // Estado local para simular el incremento de vistas en la demo
+  const [localViews, setLocalViews] = useState(video.views || 0);
 
   useEffect(() => {
     if (!video?.id) return;
 
-    // 1. Registrar vista explícitamente (hace una petición al detalle del video)
+    // Incrementa la vista +1 automáticamente al abrir el video
+    setLocalViews(prev => prev + 1);
+
     fetch(`${API_URL}/videos/${video.id}`).catch(() => {});
 
-    // 2. Cargar comentarios
     fetch(`${API_URL}/videos/${video.id}/comments`)
       .then((res) => res.json())
       .then((data) => setComments(Array.isArray(data) ? data : []))
       .catch(() => setComments([]));
 
-    // 3. Cargar recomendados dinámicos
     fetch(`${API_URL}/videos`)
       .then((res) => res.json())
       .then((data) => {
@@ -33,11 +36,10 @@ export default function PlayerPage({ video, currentUser, onSelectVideo, onBack }
     e.preventDefault();
     if (!commentText.trim()) return;
 
-    // Envio múltiple para evitar bloqueos de Pydantic por nombre de variable
     const payload = {
       content: commentText,
       text: commentText,
-      texto: commentText, // Por si tu backend en FastAPI está en español
+      texto: commentText,
       comentario: commentText,
       author_name: currentUser?.name || 'Creador',
       user_email: currentUser?.email || 'usuario@cloudtube.com'
@@ -58,7 +60,6 @@ export default function PlayerPage({ video, currentUser, onSelectVideo, onBack }
         setComments((prev) => [savedComment, ...prev]);
         setCommentText('');
       } else {
-        // AQUÍ ESTÁ LA MAGIA: Si falla, te dirá EXACTAMENTE qué falta
         const errorData = await res.json();
         alert(`FastAPI rechazó el comentario. Motivo: ${JSON.stringify(errorData)}`);
       }
@@ -66,6 +67,10 @@ export default function PlayerPage({ video, currentUser, onSelectVideo, onBack }
       alert('Error de red al intentar comentar.');
     }
   };
+
+  // Rescate de autor: Usa el nombre del usuario logueado si el backend falla
+  const displayAuthor = video.author_name || video.user_email || currentUser?.name || currentUser?.email || 'Usuario';
+  const displayInitial = displayAuthor.charAt(0).toUpperCase();
 
   return (
     <div className="page-container">
@@ -84,14 +89,14 @@ export default function PlayerPage({ video, currentUser, onSelectVideo, onBack }
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#94a3b8', fontSize: '0.85rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div className="user-avatar-sm" style={{ width: 32, height: 32 }}>
-                  {(video.author_name || video.user_email || 'U').charAt(0).toUpperCase()}
+                  {displayInitial}
                 </div>
                 <span style={{ fontWeight: 600, color: '#f8fafc' }}>
-                  {video.author_name || video.user_email || 'Usuario de CloudTube'}
+                  {displayAuthor}
                 </span>
               </div>
               <div>
-                <span>{video.views ?? (Math.floor(Math.random() * 10) + 1)} vistas</span> • <span>{new Date(video.created_at || Date.now()).toLocaleDateString()}</span>
+                <span>{localViews} vistas</span> • <span>{new Date(video.created_at || Date.now()).toLocaleDateString()}</span>
               </div>
             </div>
             <p style={{ marginTop: '16px', color: '#cbd5e1', fontSize: '0.9rem', lineHeight: 1.5, background: 'rgba(255,255,255,0.03)', padding: '14px', borderRadius: '12px' }}>
@@ -99,7 +104,6 @@ export default function PlayerPage({ video, currentUser, onSelectVideo, onBack }
             </p>
           </div>
 
-          {/* Comentarios */}
           <div className="comments-container">
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px' }}>
               Comentarios ({comments.length})
@@ -122,42 +126,47 @@ export default function PlayerPage({ video, currentUser, onSelectVideo, onBack }
             </form>
 
             <div>
-              {comments.map((c, i) => (
-                <div key={c.id || i} className="comment-row">
-                  <div className="user-avatar-sm" style={{ width: 34, height: 34, fontSize: '0.8rem' }}>
-                    {(c.author_name || c.user_email || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{c.author_name || c.user_email || 'Usuario'}</span>
-                      <span style={{ fontSize: '0.72rem', color: '#64748b' }}>{new Date(c.created_at || Date.now()).toLocaleDateString()}</span>
+              {comments.map((c, i) => {
+                const commentAuthor = c.author_name || c.user_email || currentUser?.name || 'Usuario';
+                return (
+                  <div key={c.id || i} className="comment-row">
+                    <div className="user-avatar-sm" style={{ width: 34, height: 34, fontSize: '0.8rem' }}>
+                      {commentAuthor.charAt(0).toUpperCase()}
                     </div>
-                    <p style={{ fontSize: '0.88rem', color: '#cbd5e1' }}>{c.content || c.text || c.texto || c.comentario}</p>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{commentAuthor}</span>
+                        <span style={{ fontSize: '0.72rem', color: '#64748b' }}>{new Date(c.created_at || Date.now()).toLocaleDateString()}</span>
+                      </div>
+                      <p style={{ fontSize: '0.88rem', color: '#cbd5e1' }}>{c.content || c.text || c.texto || c.comentario}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </div>
 
-        {/* Recomendados */}
         <div>
           <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px', color: '#cbd5e1' }}>Videos recomendados</h3>
           <div className="recommended-sidebar">
-            {recommended.map((item) => (
-              <div key={item.id} className="recommended-item" onClick={() => onSelectVideo(item)}>
-                <div className="rec-thumb">
-                  <img src={item.thumbnail_url || 'https://via.placeholder.com/160x90'} alt={item.title} />
+            {recommended.map((item) => {
+              const recAuthor = item.author_name || item.user_email || currentUser?.name || 'Creador';
+              return (
+                <div key={item.id} className="recommended-item" onClick={() => onSelectVideo(item)}>
+                  <div className="rec-thumb">
+                    <img src={item.thumbnail_url || 'https://via.placeholder.com/160x90'} alt={item.title} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h4 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f1f5f9', lineHeight: 1.3, marginBottom: '4px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {item.title || item.titulo}
+                    </h4>
+                    <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{recAuthor}</p>
+                    <p style={{ fontSize: '0.7rem', color: '#64748b' }}>{item.views !== undefined ? item.views + 1 : 1} vistas</p>
+                  </div>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h4 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f1f5f9', lineHeight: 1.3, marginBottom: '4px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                    {item.title || item.titulo}
-                  </h4>
-                  <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{item.author_name || 'Creador'}</p>
-                  <p style={{ fontSize: '0.7rem', color: '#64748b' }}>{item.views ?? 1} vistas</p>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </div>
