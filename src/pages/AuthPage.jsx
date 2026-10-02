@@ -14,7 +14,7 @@ export default function AuthPage({ onLoginSuccess }) {
     setError('');
     setLoading(true);
 
-    const endpoint = isLogin ? `${API_URL}/auth/login` : `${API_URL}/auth/register`;
+    const endpoint = isLogin ? `${API_URL}/login` : `${API_URL}/users`;
     const payload = isLogin ? { email, password } : { name, email, password };
 
     try {
