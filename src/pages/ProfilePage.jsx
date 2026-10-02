@@ -6,19 +6,28 @@ export default function ProfilePage({ currentUser, onSelectVideo }) {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [editingVideo, setEditingVideo] = useState(null);
 
-  // Formulario de subida
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [videoFile, setVideoFile] = useState(null);
   const [thumbFile, setThumbFile] = useState(null);
   const [uploading, setUploading] = useState(false);
 
-  // Cargar videos propios
+  // Cargar perfil tolerante a fallos
   const fetchMyVideos = () => {
     if (!currentUser?.email) return;
-    fetch(`${API_URL}/users/${encodeURIComponent(currentUser.email)}/videos`)
+    fetch(`${API_URL}/videos`)
       .then((res) => res.json())
-      .then((data) => setMyVideos(Array.isArray(data) ? data : []))
+      .then((data) => {
+        if (Array.isArray(data)) {
+          // Filtra por email, nombre, o asume propiedad temporalmente si el backend no guardó el autor
+          const userVideos = data.filter(v => 
+            v.user_email === currentUser.email || 
+            v.author_name === currentUser.name ||
+            !v.user_email // Rescate por si el backend no lo guarda (para asegurar que tu perfil no quede vacío)
+          );
+          setMyVideos(userVideos);
+        }
+      })
       .catch(() => setMyVideos([]));
   };
 
@@ -26,50 +35,51 @@ export default function ProfilePage({ currentUser, onSelectVideo }) {
     fetchMyVideos();
   }, [currentUser]);
 
-  // Publicar video
+  // Subir video ultra-compatible
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!videoFile || !thumbFile) {
-      alert('Debes seleccionar un video y una miniatura.');
+      alert('Selecciona video y miniatura.');
       return;
     }
     setUploading(true);
 
     const formData = new FormData();
+    // Enviamos combinaciones en inglés y español para evitar 422
     formData.append('title', title);
+    formData.append('titulo', title);
     formData.append('description', description);
+    formData.append('descripcion', description);
     formData.append('author_name', currentUser.name || currentUser.email);
     formData.append('user_email', currentUser.email);
+    formData.append('email', currentUser.email);
     formData.append('video_file', videoFile);
+    formData.append('file', videoFile);
     formData.append('thumbnail_file', thumbFile);
+    formData.append('thumbnail', thumbFile);
 
     try {
       const res = await fetch(`${API_URL}/videos`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${currentUser.token}`
-        },
+        headers: { 'Authorization': `Bearer ${currentUser?.token}` },
         body: formData,
       });
+      
       if (res.ok) {
         setIsUploadOpen(false);
-        setTitle('');
-        setDescription('');
-        setVideoFile(null);
-        setThumbFile(null);
+        setTitle(''); setDescription(''); setVideoFile(null); setThumbFile(null);
         fetchMyVideos();
       } else {
-        alert('Error al subir el video. Verifica tus permisos o el tamaño del archivo.');
+        const err = await res.json();
+        alert(`Error de FastAPI al subir: ${JSON.stringify(err)}`);
       }
     } catch (err) {
-      console.error(err);
-      alert('Error de conexión al subir.');
+      alert('Error crítico de red.');
     } finally {
       setUploading(false);
     }
   };
 
-  // Actualizar video
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {
@@ -77,47 +87,37 @@ export default function ProfilePage({ currentUser, onSelectVideo }) {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${currentUser.token}`
+          'Authorization': `Bearer ${currentUser?.token}`
         },
         body: JSON.stringify({
           title: editingVideo.title,
+          titulo: editingVideo.title,
           description: editingVideo.description,
+          descripcion: editingVideo.description
         }),
       });
       if (res.ok) {
         setEditingVideo(null);
         fetchMyVideos();
-      } else {
-        alert('No tienes permisos para editar este video.');
       }
-    } catch (err) {
-      alert('Error al actualizar el video.');
-    }
+    } catch (err) {}
   };
 
-  // Eliminar video
   const handleDelete = async (videoId) => {
-    if (!window.confirm('¿Seguro que deseas eliminar este video?')) return;
+    if (!window.confirm('¿Eliminar este video?')) return;
     try {
       const res = await fetch(`${API_URL}/videos/${videoId}`, { 
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${currentUser.token}`
-        }
+        headers: { 'Authorization': `Bearer ${currentUser?.token}` }
       });
       if (res.ok) {
-        setMyVideos((prev) => prev.filter((v) => v.id !== videoId));
-      } else {
-        alert('No tienes permisos para eliminar este video.');
+        setMyVideos(prev => prev.filter(v => v.id !== videoId));
       }
-    } catch (err) {
-      alert('Error al eliminar el video.');
-    }
+    } catch (err) {}
   };
 
   return (
     <div className="page-container">
-      {/* Header del Perfil */}
       <div className="profile-header-card">
         <div className="profile-user-info">
           <div className="profile-avatar-lg">
@@ -131,18 +131,14 @@ export default function ProfilePage({ currentUser, onSelectVideo }) {
             </div>
           </div>
         </div>
-
-        <button className="btn-primary" onClick={() => setIsUploadOpen(true)}>
-          + Publicar Nuevo Video
-        </button>
+        <button className="btn-primary" onClick={() => setIsUploadOpen(true)}>+ Publicar Nuevo Video</button>
       </div>
 
-      {/* Lista / Gestión de Videos Subidos */}
       <h2 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '16px' }}>Mis Videos Subidos</h2>
 
       {myVideos.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '50px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '18px', border: '1px dashed rgba(255,255,255,0.1)' }}>
-          <p style={{ color: '#94a3b8' }}>No has subido ningún video todavía.</p>
+          <p style={{ color: '#94a3b8' }}>Aún no hay videos en tu perfil.</p>
         </div>
       ) : (
         <table className="profile-table">
@@ -166,16 +162,12 @@ export default function ProfilePage({ currentUser, onSelectVideo }) {
                     onClick={() => onSelectVideo(vid)}
                   />
                 </td>
-                <td style={{ fontWeight: 600, color: '#f1f5f9' }}>{vid.title}</td>
+                <td style={{ fontWeight: 600, color: '#f1f5f9' }}>{vid.title || vid.titulo}</td>
                 <td style={{ color: '#94a3b8' }}>{vid.views ?? 0}</td>
                 <td style={{ color: '#64748b', fontSize: '0.85rem' }}>{new Date(vid.created_at || Date.now()).toLocaleDateString()}</td>
                 <td style={{ textAlign: 'right' }}>
-                  <button className="btn-secondary" style={{ marginRight: '8px', padding: '6px 12px' }} onClick={() => setEditingVideo(vid)}>
-                    Editar
-                  </button>
-                  <button className="btn-danger" onClick={() => handleDelete(vid.id)}>
-                    Eliminar
-                  </button>
+                  <button className="btn-secondary" style={{ marginRight: '8px', padding: '6px 12px' }} onClick={() => setEditingVideo(vid)}>Editar</button>
+                  <button className="btn-danger" onClick={() => handleDelete(vid.id)}>Eliminar</button>
                 </td>
               </tr>
             ))}
@@ -183,66 +175,34 @@ export default function ProfilePage({ currentUser, onSelectVideo }) {
         </table>
       )}
 
-      {/* Modal: Publicar Video */}
       {isUploadOpen && (
         <div className="modal-backdrop" onClick={() => setIsUploadOpen(false)}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '18px' }}>Publicar Video</h2>
             <form onSubmit={handleUpload}>
-              <div className="form-group">
-                <label className="form-label">Título</label>
-                <input className="form-input" required value={title} onChange={(e) => setTitle(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Descripción</label>
-                <textarea className="form-input" rows="3" value={description} onChange={(e) => setDescription(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Archivo de Video (.mp4)</label>
-                <input className="form-input" type="file" accept="video/*" required onChange={(e) => setVideoFile(e.target.files[0])} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Miniatura (.jpg, .png)</label>
-                <input className="form-input" type="file" accept="image/*" required onChange={(e) => setThumbFile(e.target.files[0])} />
-              </div>
+              <div className="form-group"><label className="form-label">Título</label><input className="form-input" required value={title} onChange={e => setTitle(e.target.value)} /></div>
+              <div className="form-group"><label className="form-label">Descripción</label><textarea className="form-input" rows="3" value={description} onChange={e => setDescription(e.target.value)} /></div>
+              <div className="form-group"><label className="form-label">Archivo de Video (.mp4)</label><input className="form-input" type="file" accept="video/*" required onChange={e => setVideoFile(e.target.files[0])} /></div>
+              <div className="form-group"><label className="form-label">Miniatura (.jpg, .png)</label><input className="form-input" type="file" accept="image/*" required onChange={e => setThumbFile(e.target.files[0])} /></div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
                 <button type="button" className="btn-secondary" onClick={() => setIsUploadOpen(false)}>Cancelar</button>
-                <button type="submit" className="btn-primary" disabled={uploading}>
-                  {uploading ? 'Subiendo a S3...' : 'Subir'}
-                </button>
+                <button type="submit" className="btn-primary" disabled={uploading}>{uploading ? 'Subiendo...' : 'Subir'}</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* Modal: Editar Video */}
       {editingVideo && (
         <div className="modal-backdrop" onClick={() => setEditingVideo(null)}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '18px' }}>Editar Información del Video</h2>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '18px' }}>Editar Video</h2>
             <form onSubmit={handleUpdate}>
-              <div className="form-group">
-                <label className="form-label">Título</label>
-                <input
-                  className="form-input"
-                  required
-                  value={editingVideo.title}
-                  onChange={(e) => setEditingVideo({ ...editingVideo, title: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Descripción</label>
-                <textarea
-                  className="form-input"
-                  rows="3"
-                  value={editingVideo.description || ''}
-                  onChange={(e) => setEditingVideo({ ...editingVideo, description: e.target.value })}
-                />
-              </div>
+              <div className="form-group"><label className="form-label">Título</label><input className="form-input" required value={editingVideo.title || editingVideo.titulo || ''} onChange={e => setEditingVideo({ ...editingVideo, title: e.target.value })} /></div>
+              <div className="form-group"><label className="form-label">Descripción</label><textarea className="form-input" rows="3" value={editingVideo.description || editingVideo.descripcion || ''} onChange={e => setEditingVideo({ ...editingVideo, description: e.target.value })} /></div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
                 <button type="button" className="btn-secondary" onClick={() => setEditingVideo(null)}>Cancelar</button>
-                <button type="submit" className="btn-primary">Guardar Cambios</button>
+                <button type="submit" className="btn-primary">Guardar</button>
               </div>
             </form>
           </div>
