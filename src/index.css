@@ -1,9 +1,21 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
-html, body, #root {
-  height: 100%;
+:root {
+  --bg-main: #090a0f;
+  --bg-card: rgba(22, 27, 34, 0.75);
+  --border-glass: rgba(255, 255, 255, 0.08);
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+  --accent-glow: rgba(99, 102, 241, 0.35);
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+}
+
+body {
   margin: 0;
-  padding: 0;
-  background-color: #0f0f0f;
-  color: #f1f1f1;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
