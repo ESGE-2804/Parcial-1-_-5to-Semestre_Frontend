@@ -1,31 +1,87 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
-import Sidebar from './components/Sidebar';
-import Home from './pages/Home';
-import VideoPlayer from './pages/VideoPlayer';
-import Profile from './pages/Profile';
-import Login from './pages/Login';
-import Register from './pages/Register';
+import AuthPage from './pages/AuthPage';
+import HomePage from './pages/HomePage';
+import PlayerPage from './pages/PlayerPage';
+import ProfilePage from './pages/ProfilePage';
 
 export default function App() {
+  // Estado para controlar qué página se muestra: 'home' | 'player' | 'profile' | 'auth'
+  const [currentPage, setCurrentPage] = useState('home');
+  const [selectedVideo, setSelectedVideo] = useState(null);
+  
+  // Estado para mantener la sesión del usuario
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Cargar sesión guardada al refrescar la página
+  useEffect(() => {
+    const saved = localStorage.getItem('cloudtube_user');
+    if (saved) {
+      try {
+        setCurrentUser(JSON.parse(saved));
+      } catch (e) {
+        localStorage.removeItem('cloudtube_user');
+      }
+    }
+  }, []);
+
+  const handleLoginSuccess = (user) => {
+    setCurrentUser(user);
+    localStorage.setItem('cloudtube_user', JSON.stringify(user));
+    setCurrentPage('home'); // Redirige a inicio tras loguearse
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('cloudtube_user');
+    setCurrentPage('home'); // Redirige a inicio tras salir
+  };
+
+  const handleSelectVideo = (video) => {
+    setSelectedVideo(video);
+    setCurrentPage('player'); // Abre la vista del reproductor
+  };
+
   return (
-    <Router>
-      <div className="flex flex-col h-screen bg-[#0f0f0f] text-white">
-        <Navbar />
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar />
-          <main className="flex-1 overflow-y-auto bg-[#0f0f0f]">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/video/:id" element={<VideoPlayer />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-            </Routes>
-          </main>
-        </div>
-      </div>
-    </Router>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      
+      {/* La barra de navegación siempre es visible */}
+      <Navbar
+        currentPage={currentPage}
+        setCurrentPage={(page) => {
+          setSelectedVideo(null); // Limpia el video seleccionado si cambia de pestaña
+          setCurrentPage(page);
+        }}
+        currentUser={currentUser}
+        onLogout={handleLogout}
+      />
+
+      {/* Contenedor dinámico de las 4 páginas */}
+      <main style={{ flex: 1 }}>
+        {currentPage === 'home' && (
+          <HomePage onSelectVideo={handleSelectVideo} />
+        )}
+
+        {currentPage === 'player' && selectedVideo && (
+          <PlayerPage
+            video={selectedVideo}
+            currentUser={currentUser}
+            onSelectVideo={handleSelectVideo}
+            onBack={() => setCurrentPage('home')}
+          />
+        )}
+
+        {currentPage === 'profile' && currentUser && (
+          <ProfilePage
+            currentUser={currentUser}
+            onSelectVideo={handleSelectVideo}
+          />
+        )}
+
+        {currentPage === 'auth' && (
+          <AuthPage onLoginSuccess={handleLoginSuccess} />
+        )}
+      </main>
+    </div>
   );
 }
