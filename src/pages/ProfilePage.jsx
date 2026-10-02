@@ -141,38 +141,42 @@ export default function ProfilePage({ currentUser, onSelectVideo }) {
           <p style={{ color: '#94a3b8' }}>Aún no hay videos en tu perfil.</p>
         </div>
       ) : (
-        <table className="profile-table">
-          <thead>
-            <tr>
-              <th>Miniatura</th>
-              <th>Título</th>
-              <th>Vistas</th>
-              <th>Fecha</th>
-              <th style={{ textAlign: 'right' }}>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {myVideos.map((vid) => (
-              <tr key={vid.id}>
-                <td style={{ width: '100px' }}>
-                  <img
-                    src={vid.thumbnail_url || 'https://via.placeholder.com/80x45'}
-                    alt={vid.title}
-                    style={{ width: '80px', height: '45px', objectFit: 'cover', borderRadius: '8px', cursor: 'pointer' }}
-                    onClick={() => onSelectVideo(vid)}
-                  />
-                </td>
-                <td style={{ fontWeight: 600, color: '#f1f5f9' }}>{vid.title || vid.titulo}</td>
-                <td style={{ color: '#94a3b8' }}>{vid.views ?? 0}</td>
-                <td style={{ color: '#64748b', fontSize: '0.85rem' }}>{new Date(vid.created_at || Date.now()).toLocaleDateString()}</td>
-                <td style={{ textAlign: 'right' }}>
-                  <button className="btn-secondary" style={{ marginRight: '8px', padding: '6px 12px' }} onClick={() => setEditingVideo(vid)}>Editar</button>
-                  <button className="btn-danger" onClick={() => handleDelete(vid.id)}>Eliminar</button>
-                </td>
+        /* AQUÍ AGREGAMOS EL DIV ENVOLTORIO PARA EL SCROLL EN MÓVILES */
+        <div className="profile-table-wrapper">
+          <table className="profile-table">
+            <thead>
+              <tr>
+                <th>Miniatura</th>
+                <th>Título</th>
+                <th>Vistas</th>
+                <th>Fecha</th>
+                <th style={{ textAlign: 'right' }}>Acciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {myVideos.map((vid) => (
+                <tr key={vid.id}>
+                  <td style={{ width: '100px' }}>
+                    <img
+                      src={vid.thumbnail_url || 'https://via.placeholder.com/80x45'}
+                      alt={vid.title}
+                      style={{ width: '80px', height: '45px', objectFit: 'cover', borderRadius: '8px', cursor: 'pointer' }}
+                      onClick={() => onSelectVideo(vid)}
+                    />
+                  </td>
+                  <td style={{ fontWeight: 600, color: '#f1f5f9' }}>{vid.title || vid.titulo}</td>
+                  <td style={{ color: '#94a3b8' }}>{vid.views ?? 0}</td>
+                  <td style={{ color: '#64748b', fontSize: '0.85rem' }}>{new Date(vid.created_at || Date.now()).toLocaleDateString()}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    <button className="btn-secondary" style={{ marginRight: '8px', padding: '6px 12px' }} onClick={() => setEditingVideo(vid)}>Editar</button>
+                    <button className="btn-danger" onClick={() => handleDelete(vid.id)}>Eliminar</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        /* FIN DEL DIV ENVOLTORIO */
       )}
 
       {isUploadOpen && (
